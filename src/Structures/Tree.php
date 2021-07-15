@@ -6,6 +6,7 @@ use Statamic\Contracts\Data\Localization;
 use Statamic\Contracts\Structures\Tree as Contract;
 use Statamic\Data\ExistsAsFile;
 use Statamic\Facades\Blink;
+use Statamic\Facades\Entry;
 use Statamic\Facades\Site;
 use Statamic\Support\Arr;
 use Statamic\Support\Traits\FluentlyGetsAndSets;
@@ -19,6 +20,8 @@ abstract class Tree implements Contract, Localization
     protected $tree = [];
     protected $cachedFlattenedPages;
     protected $original;
+    protected $withEntries = false;
+    protected $uriCacheEnabled = true;
 
     public function locale($locale = null)
     {
@@ -115,6 +118,18 @@ abstract class Tree implements Contract, Localization
     public function uris()
     {
         return $this->flattenedPages()->map->uri();
+    }
+
+    public function disableUriCache()
+    {
+        $this->uriCacheEnabled = false;
+
+        return $this;
+    }
+
+    public function uriCacheEnabled()
+    {
+        return $this->uriCacheEnabled;
     }
 
     public function page(string $id): ?Page
@@ -306,15 +321,20 @@ abstract class Tree implements Contract, Localization
 
     public function entry($entry)
     {
-        $blink = static::class.'-'.$this->structure()->handle().'-'.$this->locale();
+        $blink = Blink::store('structure-entries');
 
-        $entries = Blink::store('structure-entries')->once($blink, function () {
+        return $blink->once($entry, function () use ($blink, $entry) {
+            if (! $this->withEntries) {
+                return Entry::find($entry);
+            }
+
             $refs = $this->flattenedPages()->map->reference()->filter()->all();
+            $entries = Entry::query()->whereIn('id', $refs)->get()->keyBy->id()->all();
 
-            return \Statamic\Facades\Entry::query()->whereIn('id', $refs)->get()->keyBy->id();
+            $blink->put($entries);
+
+            return $entries[$entry] ?? null;
         });
-
-        return $entries->get($entry);
     }
 
     public function syncOriginal()
@@ -322,6 +342,13 @@ abstract class Tree implements Contract, Localization
         $this->original = [
             'tree' => $this->tree,
         ];
+
+        return $this;
+    }
+
+    public function withEntries()
+    {
+        $this->withEntries = true;
 
         return $this;
     }

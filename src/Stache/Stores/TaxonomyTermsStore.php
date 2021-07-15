@@ -4,8 +4,8 @@ namespace Statamic\Stache\Stores;
 
 use Facades\Statamic\Stache\Traverser;
 use Illuminate\Support\Facades\Cache;
+use Statamic\Entries\GetSlugFromPath;
 use Statamic\Facades\File;
-use Statamic\Facades\Path;
 use Statamic\Facades\Stache;
 use Statamic\Facades\Taxonomy;
 use Statamic\Facades\Term;
@@ -26,7 +26,7 @@ class TaxonomyTermsStore extends ChildStore
         'site' => Indexes\Terms\Site::class,
     ];
 
-    public function getFileFilter(SplFileInfo $file)
+    public function getItemFilter(SplFileInfo $file)
     {
         $dir = str_finish($this->directory(), '/');
         $relative = $file->getPathname();
@@ -51,7 +51,7 @@ class TaxonomyTermsStore extends ChildStore
 
         $term = Term::make()
             ->taxonomy($taxonomy)
-            ->slug(pathinfo(Path::clean($path), PATHINFO_FILENAME))
+            ->slug((new GetSlugFromPath)($path))
             ->initialPath($path)
             ->blueprint($data['blueprint'] ?? null);
 
@@ -111,6 +111,7 @@ class TaxonomyTermsStore extends ChildStore
                 'value' => $value,
                 'slug' => $slug,
                 'entry' => $entry->id(),
+                'collection' => $entry->collectionHandle(),
                 'site' => $entry->locale(),
             ]);
         }

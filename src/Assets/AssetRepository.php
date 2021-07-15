@@ -62,7 +62,7 @@ class AssetRepository implements Contract
 
     protected function resolveContainerFromUrl($url)
     {
-        return AssetContainer::all()->sortBy(function ($container) {
+        return AssetContainer::all()->sortByDesc(function ($container) {
             return strlen($container->url());
         })->first(function ($container, $id) use ($url) {
             return starts_with($url, $container->url())
@@ -116,8 +116,6 @@ class AssetRepository implements Contract
 
     public function save($asset)
     {
-        $asset->writeMeta($asset->generateMeta());
-
         $store = Stache::store('assets::'.$asset->containerHandle());
 
         $cache = $asset->container()->contents();
@@ -131,6 +129,8 @@ class AssetRepository implements Contract
         }
 
         $cache->save();
+
+        $asset->writeMeta($asset->generateMeta());
 
         $store->save($asset);
     }
